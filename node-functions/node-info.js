@@ -16,6 +16,8 @@ export const onRequestGet = async ({ request }) => {
     url: request.url,
   }
 
+  console.log('=====info=====', info);
+
   return new Response(JSON.stringify(info), {
     status: 200,
     headers: { 'Content-Type': 'application/json; charset=UTF-8' },
