@@ -12,5 +12,9 @@ app.get("/", (req, res) => {
   res.json({ message: "Hello from Express on Node Functions!" });
 });
 
+app.get("/hello", (req, res) => {
+  res.json({ message: "Hello from Express on Node Functions! hello" });
+});
+
 // 导出处理函数
 export default app;
