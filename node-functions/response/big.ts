@@ -24,28 +24,21 @@ export const onRequestGet = async ({ request }: { request: Request }): Promise<R
     // ignore URL parse error in some local proxies
   }
 
+  const chunkSize = 1024 * 1024; // 1MB per chunk
+  let sent = 0;
+
   const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      const chunkSize = 256 * 1024; // 256KB per chunk
-      let sent = 0;
-      const chunk = generateChunk(chunkSize);
-
-      function push() {
-        if (sent >= targetBytes) {
-          controller.close();
-          return;
-        }
-        const remaining = targetBytes - sent;
-        const size = Math.min(chunkSize, remaining);
-        controller.enqueue(size === chunkSize ? chunk : chunk.slice(0, size));
-        sent += size;
-        // Yield to event loop to avoid blocking
-        setTimeout(push, 0);
-      }
-
-      push();
-    },
     type: "bytes",
+    pull(controller) {
+      if (sent >= targetBytes) {
+        controller.close();
+        return;
+      }
+      const remaining = targetBytes - sent;
+      const size = Math.min(chunkSize, remaining);
+      controller.enqueue(generateChunk(size));
+      sent += size;
+    },
   });
 
   return new Response(stream, {
@@ -54,8 +47,20 @@ export const onRequestGet = async ({ request }: { request: Request }): Promise<R
       "Content-Type": "application/octet-stream",
       "Content-Disposition": `attachment; filename="big-${targetBytes}.bin"`,
       "Cache-Control": "no-store",
+      "Content-Length": String(targetBytes),
     },
   });
+};
+
+export const onRequest = async ({ request }: { request: Request }): Promise<Response> => {
+  if (request.method === "GET") return onRequestGet({ request });
+  if (request.method === "HEAD") {
+    // Mirror headers with zero-length body to satisfy HEAD
+    const res = await onRequestGet({ request });
+    const headers = new Headers(res.headers);
+    return new Response(null, { status: 200, headers });
+  }
+  return new Response("Method Not Allowed", { status: 405 });
 };
 
 

@@ -15,8 +15,25 @@ export const onRequestGet = async (): Promise<Response> => {
 };
 
 export const onRequestPost = async ({ request }: { request: Request }): Promise<Response> => {
-  // Fast-fail with Content-Length if provided
-  const contentLengthHeader = request.headers.get("content-length");
+  // Fast-fail with Content-Length if provided (support both Headers and Node.js plain object)
+  const headersAny: any = (request as any).headers;
+  const getHeader = (name: string): string | undefined => {
+    try {
+      if (headersAny && typeof headersAny.get === "function") {
+        const v = headersAny.get(name);
+        return v === null ? undefined : v;
+      }
+      if (headersAny && typeof headersAny === "object") {
+        const lower = name.toLowerCase();
+        const v = headersAny[lower] ?? headersAny[name] ?? headersAny[lower as keyof typeof headersAny];
+        if (Array.isArray(v)) return v[0];
+        return typeof v === "string" ? v : v != null ? String(v) : undefined;
+      }
+    } catch {}
+    return undefined;
+  };
+
+  const contentLengthHeader = getHeader("content-length");
   if (contentLengthHeader) {
     const contentLength = Number(contentLengthHeader);
     if (!Number.isNaN(contentLength) && contentLength > EIGHT_MB) {
@@ -74,6 +91,12 @@ export const onRequestPost = async ({ request }: { request: Request }): Promise<
       { status: 500, headers: { "Content-Type": "application/json; charset=UTF-8" } }
     );
   }
+};
+
+export const onRequest = async ({ request }: { request: Request }): Promise<Response> => {
+  if (request.method === "GET") return onRequestGet();
+  if (request.method === "POST") return onRequestPost({ request });
+  return new Response("Method Not Allowed", { status: 405 });
 };
 
 
