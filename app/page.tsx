@@ -2,6 +2,7 @@ import type React from "react"
 import Link from "next/link"
 import { ArrowRight, Code, Server, Zap, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { UploadTestButton } from "./upload-test-button"
 
 export default function Home() {
   return (
@@ -145,6 +146,20 @@ export default function Home() {
               </div>
              </div>
           </div>
+        </div>
+
+        {/* API 测试区域 */}
+        <div className="mt-12 mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Node Functions 测试</h2>
+          <Card className="max-w-4xl mx-auto">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b">
+              <CardTitle className="text-xl">请求/响应大小限制测试</CardTitle>
+              <CardDescription>测试 Node Functions 的请求大小限制和响应能力</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <UploadTestButton />
+            </CardContent>
+          </Card>
         </div>
 
         {/* Footer */}
