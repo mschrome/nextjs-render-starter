@@ -52,40 +52,42 @@ export const onRequestPost = async ({ request }: { request: Request }): Promise<
     }
   }
 
-  const body = request.body;
-  if (!body) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "empty-body" }),
-      { status: 400, headers: { "Content-Type": "application/json; charset=UTF-8" } }
-    );
-  }
-
-  const reader = body.getReader();
-  let totalBytes = 0;
-
   try {
-    // Stream and count bytes; abort when exceeding 8MB
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      if (value) {
-        totalBytes += value.byteLength ?? value.length ?? 0;
-        if (totalBytes > EIGHT_MB) {
-          await reader.cancel("over-limit");
-          return new Response(
-            JSON.stringify({ ok: false, reason: "stream-exceeds-limit", received: totalBytes, limit: EIGHT_MB }),
-            { status: 413, headers: { "Content-Type": "application/json; charset=UTF-8" } }
-          );
-        }
-      }
+    // Use arrayBuffer() for Node.js compatibility (instead of body.getReader())
+    const arrayBuffer = await request.arrayBuffer();
+    const totalBytes = arrayBuffer.byteLength;
+
+    if (totalBytes === 0) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "empty-body" }),
+        { status: 400, headers: { "Content-Type": "application/json; charset=UTF-8" } }
+      );
+    }
+
+    if (totalBytes > EIGHT_MB) {
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          reason: "body-exceeds-limit", 
+          received: totalBytes, 
+          limit: EIGHT_MB 
+        }),
+        { status: 413, headers: { "Content-Type": "application/json; charset=UTF-8" } }
+      );
     }
 
     return new Response(
-      JSON.stringify({ ok: true, received: totalBytes, limit: EIGHT_MB }),
+      JSON.stringify({ 
+        ok: true, 
+        received: totalBytes, 
+        receivedMB: (totalBytes / 1024 / 1024).toFixed(2),
+        limit: EIGHT_MB,
+        limitMB: (EIGHT_MB / 1024 / 1024).toFixed(2)
+      }),
       { status: 200, headers: { "Content-Type": "application/json; charset=UTF-8" } }
     );
   } catch (err) {
-    console.error("upload/limit-8mb stream error:", err);
+    console.error("upload/limit-8mb error:", err);
     return new Response(
       JSON.stringify({ ok: false, error: (err as Error)?.message ?? "unknown" }),
       { status: 500, headers: { "Content-Type": "application/json; charset=UTF-8" } }
